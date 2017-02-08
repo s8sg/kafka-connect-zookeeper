@@ -23,8 +23,8 @@ public class ZookeeperSourceTask extends SourceTask {
 	static final Logger logger = LoggerFactory.getLogger(ZookeeperSourceTask.class);
 	private ZooKeeper zoo;
 	private Zookeeperer zooKeeperer;
-	private String zk_node;
-	private List<ZKDataEntry<String, String>> sync_array_list;
+	private String[] zk_nodes;
+	private List<ZKDataEntry> sync_array_list;
 	private String topic;
 	private String zk_hosts;
 	private static final Schema VALUE_SCHEMA = Schema.STRING_SCHEMA;
@@ -42,15 +42,17 @@ public class ZookeeperSourceTask extends SourceTask {
 	@Override
 	public void start(Map<String, String> confs) {
 		this.topic = confs.get(ZookeeperSourceConnector.TOPIC_CONFIG);
-		this.zk_node= confs.get(ZookeeperSourceConnector.ZK_NODE);
+		this.zk_nodes= confs.get(ZookeeperSourceConnector.ZK_NODES).split(",");
 		this.zk_hosts = confs.get(ZookeeperSourceConnector.ZK_HOSTS);
-		this.sync_array_list = Collections.synchronizedList(new ArrayList<ZKDataEntry<String,String>>());
+		this.sync_array_list = Collections.synchronizedList(new ArrayList<ZKDataEntry>());
 		this.nodeLocks = new HashMap<String, Semaphore>();
-		// TODO: Assign Node Lock for each Node, Currently only one Node is supported
-		this.nodeLocks.put(this.zk_node, new Semaphore(1));
+		for(final String node : this.zk_nodes) {
+			this.nodeLocks.put(node, new Semaphore(1));
+		}
 		this.firstData = new HashMap<String, Boolean>();
-		// TODO: Assign Node Lock for each Node, Currently only one Node is supported
-		this.firstData.put(this.zk_node, true);
+		for(final String node : this.zk_nodes) {
+			this.firstData.put(node, true);
+		}
 		this.zooKeeperer = new Zookeeperer(this.sync_array_list, this.nodeLocks);
 		try {
 			this.zoo = new ZooKeeper(this.zk_hosts, 1000, this.zooKeeperer);
@@ -66,31 +68,33 @@ public class ZookeeperSourceTask extends SourceTask {
 		final Stat stat = new Stat();
 
 		// TODO: Support multiple node, This is being done for only one node now
-		try {
-			if(this.nodeLocks.get(this.zk_node).tryAcquire(1, TimeUnit.SECONDS)) {
-				final byte[] data = this.zoo.getData(this.zk_node, this.zooKeeperer, stat);
-				if (this.firstData.get(this.zk_node) == true) {
-					final String dataString = new String(data);
-					// Add the data string to the sync_array_list
-					this.sync_array_list.add(new ZKDataEntry<String, String>(Integer.toString(stat.hashCode()), dataString));
-					this.firstData.put(this.zk_node, false);
+		for (final String node: this.zk_nodes) {
+			try {
+				if(this.nodeLocks.get(node).tryAcquire(1, TimeUnit.SECONDS)) {
+					final byte[] data = this.zoo.getData(node, this.zooKeeperer, stat);
+					if (this.firstData.get(node) == true) {
+						final String dataString = new String(data);
+						// Add the data string to the sync_array_list
+						this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.hashCode()), node, dataString));
+						this.firstData.put(node, false);
+					}
 				}
+			} catch (final KeeperException e) {
+				// In case of any error release the lock
+				if (this.nodeLocks.get(node).availablePermits() < 1){
+					this.nodeLocks.get(node).release();
+				}
+				e.printStackTrace();
+				return null;
 			}
-		} catch (final KeeperException e) {
-			// In case of any error release the lock
-			if (this.nodeLocks.get(this.zk_node).availablePermits() < 1){
-				this.nodeLocks.get(this.zk_node).release();
-			}
-			e.printStackTrace();
-			return null;
 		}
 
 		// Get all the newly added data from the sync list
 		synchronized(this.sync_array_list) {
-			final Iterator<ZKDataEntry<String, String>> iterator = this.sync_array_list.iterator();
+			final Iterator<ZKDataEntry> iterator = this.sync_array_list.iterator();
 			while (iterator.hasNext()) {
-				final ZKDataEntry<String, String> entry = iterator.next();
-				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getKey()), this.topic, VALUE_SCHEMA, entry.getValue()));
+				final ZKDataEntry entry = iterator.next();
+				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getNode(), entry.getHash()), this.topic, VALUE_SCHEMA, entry.getValue()));
 				iterator.remove();
 			}
 		}
@@ -101,10 +105,10 @@ public class ZookeeperSourceTask extends SourceTask {
 		return Collections.singletonMap("host", this.zk_hosts);
 	}
 
-	private Map<String, String> sourceOffset(String hash) {
+	private Map<String, String> sourceOffset(String node, String hash) {
 		final Map<String, String> m = new HashMap<String, String>();
 		m.put(HASHKEY_FIELD, hash);
-		m.put(NODENAME_FIELD, this.zk_node);
+		m.put(NODENAME_FIELD, node);
 		return m;
 	}
 

@@ -1,31 +1,26 @@
 package org.s8sg.connect.zookeeper;
 
-import java.util.Map.Entry;
+final class ZKDataEntry{
 
-final class ZKDataEntry<K, V> implements Entry<K, V> {
+	private final String hash;
+	private final String node;
+	private final String value;
 
-	private final K key;
-	private V value;
-
-	public ZKDataEntry(K key, V value) {
-		this.key = key;
+	public ZKDataEntry(String hash, String node, String value) {
+		this.hash = hash;
+		this.node = node;
 		this.value = value;
 	}
 
-	@Override
-	public K getKey() {
-		return this.key;
+	public String getHash() {
+		return this.hash;
 	}
 
-	@Override
-	public V getValue() {
+	public String getValue() {
 		return this.value;
 	}
 
-	@Override
-	public V setValue(V value) {
-		final V old = this.value;
-		this.value = value;
-		return old;
+	public String getNode() {
+		return this.node;
 	}
 }

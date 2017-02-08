@@ -36,7 +36,7 @@ $ (cd kafka-connect-zookeeper && mvn clean package)
     You could set the data using `zkcli.sh`. The current repo comes with an utility (zk_util.py) to upload data to zk node
     ```
     $ pip install kazoo
-    $ python zk_util.py upload localhost:2181 /test/data this_is_a_test_data
+    $ python zk_util.py upload localhost:2181 /test/test-data this_is_a_test_data
     ```
     
 5.  Read the data out from the kafka topic named 'test' (that is the that this connector will write to, as configured in connect-zk-source.properties)

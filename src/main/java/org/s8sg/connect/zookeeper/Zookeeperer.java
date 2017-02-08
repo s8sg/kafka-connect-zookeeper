@@ -17,10 +17,10 @@ import org.slf4j.LoggerFactory;
 public class Zookeeperer implements Watcher {
 	final static Logger logger = LoggerFactory.getLogger(Zookeeperer.class);
 	private ZooKeeper zk;
-	private final List<ZKDataEntry<String,String>> sync_array_list;
+	private final List<ZKDataEntry> sync_array_list;
 	private final Map<String, Semaphore> nodeLocks;
 
-	public Zookeeperer(List<ZKDataEntry<String,String>> sync_array_list, Map<String, Semaphore> nodeLocks) {
+	public Zookeeperer(List<ZKDataEntry> sync_array_list, Map<String, Semaphore> nodeLocks) {
 		this.sync_array_list = sync_array_list;
 		this.nodeLocks = nodeLocks;
 	}
@@ -43,7 +43,7 @@ public class Zookeeperer implements Watcher {
 				final byte[] data = this.zk.getData(event.getPath(), false, stat);
 				final String dataString = new String(data);
 				// Add the data string to the sync_array_list
-				this.sync_array_list.add(new ZKDataEntry<String, String>(Integer.toString(stat.hashCode()), dataString));
+				this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.hashCode()), event.getPath(), dataString));
 			}
 		} catch (final Exception e) {
 			logger.error("Exception in processing the watch.", e);
