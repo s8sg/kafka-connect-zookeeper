@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -28,7 +30,9 @@ public class ZookeeperSourceTask extends SourceTask {
 	private static final Schema VALUE_SCHEMA = Schema.STRING_SCHEMA;
 	private static final String NODENAME_FIELD = "nodename";
 	private static final String HASHKEY_FIELD = "hashkey";
-	private boolean start = true;
+	private Map<String, Boolean> firstData;
+	private Map<String, Semaphore> nodeLocks;
+	// Node Lock is used avoid multiple registration of Watch for a specific ZK Node
 
 	@Override
 	public String version() {
@@ -41,7 +45,13 @@ public class ZookeeperSourceTask extends SourceTask {
 		this.zk_node= confs.get(ZookeeperSourceConnector.ZK_NODE);
 		this.zk_hosts = confs.get(ZookeeperSourceConnector.ZK_HOSTS);
 		this.sync_array_list = Collections.synchronizedList(new ArrayList<ZKDataEntry<String,String>>());
-		this.zooKeeperer = new Zookeeperer(this.sync_array_list);
+		this.nodeLocks = new HashMap<String, Semaphore>();
+		// TODO: Assign Node Lock for each Node, Currently only one Node is supported
+		this.nodeLocks.put(this.zk_node, new Semaphore(1));
+		this.firstData = new HashMap<String, Boolean>();
+		// TODO: Assign Node Lock for each Node, Currently only one Node is supported
+		this.firstData.put(this.zk_node, true);
+		this.zooKeeperer = new Zookeeperer(this.sync_array_list, this.nodeLocks);
 		try {
 			this.zoo = new ZooKeeper(this.zk_hosts, 1000, this.zooKeeperer);
 		} catch (final IOException e) {
@@ -54,32 +64,36 @@ public class ZookeeperSourceTask extends SourceTask {
 	public List<SourceRecord> poll() throws InterruptedException {
 		final List<SourceRecord> records = new ArrayList<>();
 		final Stat stat = new Stat();
+
+		// TODO: Support multiple node, This is being done for only one node now
 		try {
-			final byte[] data = this.zoo.getData(this.zk_node, this.zooKeeperer, stat);
-			if (this.start == true) {
-				final String dataString = new String(data);
-				// Add the data string to the sync_array_list
-				this.sync_array_list.add(new ZKDataEntry<String, String>(Integer.toString(stat.hashCode()), dataString));
-				this.start = false;
+			if(this.nodeLocks.get(this.zk_node).tryAcquire(1, TimeUnit.SECONDS)) {
+				final byte[] data = this.zoo.getData(this.zk_node, this.zooKeeperer, stat);
+				if (this.firstData.get(this.zk_node) == true) {
+					final String dataString = new String(data);
+					// Add the data string to the sync_array_list
+					this.sync_array_list.add(new ZKDataEntry<String, String>(Integer.toString(stat.hashCode()), dataString));
+					this.firstData.put(this.zk_node, false);
+				}
 			}
 		} catch (final KeeperException e) {
+			// In case of any error release the lock
+			if (this.nodeLocks.get(this.zk_node).availablePermits() < 1){
+				this.nodeLocks.get(this.zk_node).release();
+			}
 			e.printStackTrace();
 			return null;
 		}
 
-		// Get all the newly added data from the
+		// Get all the newly added data from the sync list
 		synchronized(this.sync_array_list) {
 			final Iterator<ZKDataEntry<String, String>> iterator = this.sync_array_list.iterator();
 			while (iterator.hasNext()) {
 				final ZKDataEntry<String, String> entry = iterator.next();
-				logger.info("Sending value: " + entry.getValue());
 				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getKey()), this.topic, VALUE_SCHEMA, entry.getValue()));
 				iterator.remove();
-				logger.info("After remove array list: " + this.sync_array_list);
-
 			}
 		}
-
 		return records;
 	}
 
