@@ -21,8 +21,8 @@ class UploadToZK( object ):
             return False
         return True
     
-    def close():
-        self.zk_clients.close()
+    def close(self):
+        self.zk_clients.stop()
 
 class LoadFromZK( object ):
     
@@ -42,8 +42,8 @@ class LoadFromZK( object ):
             return False
         return True
 
-    def close():
-        self.zk_clients.close()
+    def close(self):
+        self.zk_clients.stop()
 
 def load_data_from_data_source(source):
     data = source  
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         if not upload_to_zk.is_path_exist(zk_node):
             print "Failed to verify the node: %s" % zk_node
         print "Successfully uploaded data at: zk:%s" % zk_node
-        load_from_zk.close()
+        upload_to_zk.close()
     else:
         print "Invalid operation: %s" % operation
         print_usage(sys.argv[0])

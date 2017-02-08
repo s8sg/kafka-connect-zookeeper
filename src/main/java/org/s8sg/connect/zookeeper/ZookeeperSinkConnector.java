@@ -18,7 +18,7 @@ public class ZookeeperSinkConnector extends SinkConnector {
 	public static final String ZK_HOSTS = "zk-hosts";
 	public static final String ZK_NODE = "zk-node";
 
-	private ZookeeperSinkConnectorConfig config;
+	//private ZookeeperSinkConnectorConfig config;
 
 	private String zk_hosts;
 	private String zk_node;
@@ -31,7 +31,7 @@ public class ZookeeperSinkConnector extends SinkConnector {
 
 	@Override
 	public void start(Map<String, String> props) {
-		this.config = new ZookeeperSinkConnectorConfig(props);
+		//this.config = new ZookeeperSinkConnectorConfig(props);
 		this.zk_hosts = props.get(ZK_HOSTS);
 		if ((this.zk_hosts == null) || this.zk_hosts.isEmpty()) {
 			throw new ConnectException("FileStreamSourceConnector configuration must include 'zk-hosts' setting");

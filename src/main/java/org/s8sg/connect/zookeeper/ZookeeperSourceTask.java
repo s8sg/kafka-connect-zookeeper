@@ -22,12 +22,12 @@ public class ZookeeperSourceTask extends SourceTask {
 	private ZooKeeper zoo;
 	private Zookeeperer zooKeeperer;
 	private String zk_node;
-	private List<String> sync_array_list;
+	private List<ZKDataEntry<String, String>> sync_array_list;
 	private String topic;
 	private String zk_hosts;
 	private static final Schema VALUE_SCHEMA = Schema.STRING_SCHEMA;
 	private static final String NODENAME_FIELD = "nodename";
-	private static final String POSITION_FIELD = "position";
+	private static final String HASHKEY_FIELD = "hashkey";
 	private boolean start = true;
 
 	@Override
@@ -40,13 +40,14 @@ public class ZookeeperSourceTask extends SourceTask {
 		this.topic = confs.get(ZookeeperSourceConnector.TOPIC_CONFIG);
 		this.zk_node= confs.get(ZookeeperSourceConnector.ZK_NODE);
 		this.zk_hosts = confs.get(ZookeeperSourceConnector.ZK_HOSTS);
-		this.sync_array_list = Collections.synchronizedList(new ArrayList<String>());
+		this.sync_array_list = Collections.synchronizedList(new ArrayList<ZKDataEntry<String,String>>());
 		this.zooKeeperer = new Zookeeperer(this.sync_array_list);
 		try {
 			this.zoo = new ZooKeeper(this.zk_hosts, 1000, this.zooKeeperer);
 		} catch (final IOException e) {
-
+			// TODO: DO something if Connect Fails
 		}
+		this.zooKeeperer.setZkClient(this.zoo);
 	}
 
 	@Override
@@ -58,7 +59,7 @@ public class ZookeeperSourceTask extends SourceTask {
 			if (this.start == true) {
 				final String dataString = new String(data);
 				// Add the data string to the sync_array_list
-				this.sync_array_list.add(dataString);
+				this.sync_array_list.add(new ZKDataEntry<String, String>(Integer.toString(stat.hashCode()), dataString));
 				this.start = false;
 			}
 		} catch (final KeeperException e) {
@@ -68,13 +69,14 @@ public class ZookeeperSourceTask extends SourceTask {
 
 		// Get all the newly added data from the
 		synchronized(this.sync_array_list) {
-			final Iterator<String> iterator = this.sync_array_list.iterator();
-			int pos = 0;
+			final Iterator<ZKDataEntry<String, String>> iterator = this.sync_array_list.iterator();
 			while (iterator.hasNext()) {
-				final String value = iterator.next();
-				records.add(new SourceRecord(sourcePartition(), sourceOffset(pos), this.topic, VALUE_SCHEMA, value));
+				final ZKDataEntry<String, String> entry = iterator.next();
+				logger.info("Sending value: " + entry.getValue());
+				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getKey()), this.topic, VALUE_SCHEMA, entry.getValue()));
 				iterator.remove();
-				pos++;
+				logger.info("After remove array list: " + this.sync_array_list);
+
 			}
 		}
 
@@ -85,9 +87,9 @@ public class ZookeeperSourceTask extends SourceTask {
 		return Collections.singletonMap("host", this.zk_hosts);
 	}
 
-	private Map<String, String> sourceOffset(int pos) {
+	private Map<String, String> sourceOffset(String hash) {
 		final Map<String, String> m = new HashMap<String, String>();
-		m.put(POSITION_FIELD, Integer.toString(pos));
+		m.put(HASHKEY_FIELD, hash);
 		m.put(NODENAME_FIELD, this.zk_node);
 		return m;
 	}
