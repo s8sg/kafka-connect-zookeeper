@@ -1,4 +1,4 @@
-This is a Zookeeper Kafka connector implementation for both sink and the source.
+**This is a Zookeeper Kafka connector implementation for both sink and the source**
 
 #### Instructions for building
 -------------------------
@@ -96,12 +96,16 @@ connect-zk-sink.properties
     $ python zk_util.py download localhost:2181 /test/data
     this_is_a_test_data
     ```
-   
-#### TODO 
+
+
+
+#### TODO  
+------------------------
 * Write Test Cases
 * Integration with build system (Travis)
 
-#### Note
+#### Note  
+------------------------
 * This repo is under active devolpment
 * This repo use zk watch feature which is async call, but connector `poll` call is sync in nature. Each poll call register an watch. Watch stores the chaged data in a queue, which is unloaded in poll call itself  
 ```
