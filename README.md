@@ -1,4 +1,8 @@
-**This is a Zookeeper Kafka connector implementation for both sink and the source**
+# Kafka-Connect-ZooKeeper
+A Zookeeper Kafka connector implementation for both sink and the source
+
+[![Build Status](https://travis-ci.org/s8sg/kafka-connect-zookeeper.svg?branch=master)](https://travis-ci.org/s8sg/kafka-connect-zookeeper)
+
 
 #### Instructions for building
 -------------------------
