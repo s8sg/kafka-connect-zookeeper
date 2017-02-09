@@ -70,11 +70,11 @@ connect-zk-sink.properties
     $ kafka_2.11-0.9.0.0/bin/connect-standalone.sh kafka-connect-zookeeper/connect-standalone.properties  kafka-connect-zookeeper/config/connect-zk-source.properties
     ```
     
-2.  Write stuff to zookeeper node (the connector will read from, as configured in connect-zk-source.properties)
+2.  Write stuff to zookeeper node `test-data-source` (the connector will read from, as configured in connect-zk-source.properties)
     You could set the data using `zkcli.sh`. The current repo comes with an utility (zk_util.py) to upload data to zk node
     ```
     $ pip install kazoo
-    $ python zk_util.py upload localhost:2181 /test/test-data this_is_a_test_data
+    $ python zk_util.py upload localhost:2181 /test/test-data-source this_is_a_test_data
     ```
     
 3.  Read the data out from the kafka topic named 'test' (that is the that this connector will write to, as configured in connect-zk-source.properties)
@@ -91,12 +91,11 @@ connect-zk-sink.properties
     $ kafka_2.11-0.9.0.0/bin/connect-standalone.sh kafka-connect-zookeeper/connect-standalone.properties  kafka-connect-zookeeper/config/connect-zk-sink.properties
     ```
 
-2.  Check that the zookeeper-sink plugin has written the data to the zookeeper
+2.  Check that the zookeeper-sink plugin has written the data to the zookeeper node `test-data-sink`
     ```
-    $ python zk_util.py download localhost:2181 /test/data
+    $ python zk_util.py download localhost:2181 /test/test-data-sink
     this_is_a_test_data
     ```
-
 
 
 #### TODO  
@@ -110,6 +109,7 @@ connect-zk-sink.properties
 * This repo use zk watch feature which is async call, but connector `poll` call is sync in nature. Each poll call register an watch. Watch stores the chaged data in a queue, which is unloaded in poll call itself  
 ```
    poll                             watch_call
+  --------                         ------------ 
   register---> watch ----------            
                                | --> puts data
                                         | 
@@ -122,6 +122,7 @@ connect-zk-sink.properties
 * For avoiding multiple registrstion of watch semaphore(1) is used, each callback to watch release semaphore for the specific node
 ```
  poll                        watch
+-------                     --------
 acquire---> semaphore(1) <--release
 ```
 * For any contribution or suggestions, please create PR or Issues

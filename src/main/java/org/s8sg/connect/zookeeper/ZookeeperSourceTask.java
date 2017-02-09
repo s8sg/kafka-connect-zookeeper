@@ -32,7 +32,7 @@ public class ZookeeperSourceTask extends SourceTask {
 	private static final String HASHKEY_FIELD = "hashkey";
 	private Map<String, Boolean> firstData;
 	private Map<String, Semaphore> nodeLocks;
-	// Node Lock is used avoid multiple registration of Watch for a specific ZK Node
+	// Node Locks are used avoid multiple registration of Watches for a single ZK Node
 
 	@Override
 	public String version() {
@@ -57,7 +57,7 @@ public class ZookeeperSourceTask extends SourceTask {
 		try {
 			this.zoo = new ZooKeeper(this.zk_hosts, 1000, this.zooKeeperer);
 		} catch (final IOException e) {
-			// TODO: DO something if Connect Fails
+			e.printStackTrace();
 		}
 		this.zooKeeperer.setZkClient(this.zoo);
 	}
@@ -75,7 +75,7 @@ public class ZookeeperSourceTask extends SourceTask {
 					if (this.firstData.get(node) == true) {
 						final String dataString = new String(data);
 						// Add the data string to the sync_array_list
-						this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.hashCode()), node, dataString));
+						this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.getVersion()), node, dataString));
 						this.firstData.put(node, false);
 					}
 				}
@@ -94,7 +94,7 @@ public class ZookeeperSourceTask extends SourceTask {
 			final Iterator<ZKDataEntry> iterator = this.sync_array_list.iterator();
 			while (iterator.hasNext()) {
 				final ZKDataEntry entry = iterator.next();
-				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getNode(), entry.getHash()), this.topic, VALUE_SCHEMA, entry.getValue()));
+				records.add(new SourceRecord(sourcePartition(), sourceOffset(entry.getNode(), entry.getVersion()), this.topic, VALUE_SCHEMA, entry.getValue()));
 				iterator.remove();
 			}
 		}

@@ -14,15 +14,11 @@ import org.slf4j.LoggerFactory;
 
 public class ZookeeperSinkConnector extends SinkConnector {
 	private static Logger logger = LoggerFactory.getLogger(ZookeeperSinkConnector.class);
-	public static final String TOPIC_CONFIG = "topics";
 	public static final String ZK_HOSTS = "zk-hosts";
 	public static final String ZK_NODE = "zk-node";
 
-	//private ZookeeperSinkConnectorConfig config;
-
 	private String zk_hosts;
 	private String zk_node;
-	private String topic;
 
 	@Override
 	public String version() {
@@ -31,7 +27,6 @@ public class ZookeeperSinkConnector extends SinkConnector {
 
 	@Override
 	public void start(Map<String, String> props) {
-		//this.config = new ZookeeperSinkConnectorConfig(props);
 		this.zk_hosts = props.get(ZK_HOSTS);
 		if ((this.zk_hosts == null) || this.zk_hosts.isEmpty()) {
 			throw new ConnectException("FileStreamSourceConnector configuration must include 'zk-hosts' setting");
@@ -42,13 +37,6 @@ public class ZookeeperSinkConnector extends SinkConnector {
 		}
 		if (this.zk_node.contains(",")) {
 			throw new ConnectException("FileStreamSourceConnector should only have a single node.");
-		}
-		this.topic = props.get(TOPIC_CONFIG);
-		if ((this.topic == null) || this.topic.isEmpty()) {
-			throw new ConnectException("FileStreamSourceConnector configuration must include 'topic' setting");
-		}
-		if (this.topic.contains(",")) {
-			throw new ConnectException("FileStreamSourceConnector should only have a single topic when used as a source.");
 		}
 	}
 
@@ -64,7 +52,6 @@ public class ZookeeperSinkConnector extends SinkConnector {
 		final Map<String, String> config = new HashMap<>();
 		config.put(ZK_NODE, this.zk_node);
 		config.put(ZK_HOSTS, this.zk_hosts);
-		config.put(TOPIC_CONFIG, this.topic);
 		configs.add(config);
 		return configs;
 	}

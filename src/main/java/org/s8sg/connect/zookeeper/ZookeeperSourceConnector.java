@@ -19,7 +19,7 @@ public class ZookeeperSourceConnector extends SourceConnector {
 	public static final String ZK_NODES = "zk-nodes";
 
 	private String zk_hosts;
-	private String[] zk_nodes;
+	private String zk_nodes;
 	private String topic;
 
 	@Override
@@ -34,8 +34,8 @@ public class ZookeeperSourceConnector extends SourceConnector {
 		if ((this.zk_hosts == null) || this.zk_hosts.isEmpty()) {
 			throw new ConnectException("FileStreamSourceConnector configuration must include 'zk-hosts' setting");
 		}
-		this.zk_nodes = props.get(ZK_NODES).split(",");
-		if ((this.zk_nodes == null) || (this.zk_nodes.length == 0)) {
+		this.zk_nodes = props.get(ZK_NODES);
+		if ((this.zk_nodes == null) || (this.zk_nodes.isEmpty())) {
 			throw new ConnectException("FileStreamSourceConnector configuration must include 'zk-node' setting");
 		}
 		this.topic = props.get(TOPIC_CONFIG);
@@ -57,7 +57,7 @@ public class ZookeeperSourceConnector extends SourceConnector {
 		final ArrayList<Map<String, String>> configs = new ArrayList<>();
 		// Only one input stream makes sense.
 		final Map<String, String> config = new HashMap<>();
-		config.put(ZK_NODES, String.join(",", this.zk_nodes));
+		config.put(ZK_NODES, this.zk_nodes);
 		config.put(ZK_HOSTS, this.zk_hosts);
 		config.put(TOPIC_CONFIG, this.topic);
 		configs.add(config);

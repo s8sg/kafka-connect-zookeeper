@@ -43,7 +43,7 @@ public class Zookeeperer implements Watcher {
 				final byte[] data = this.zk.getData(event.getPath(), false, stat);
 				final String dataString = new String(data);
 				// Add the data string to the sync_array_list
-				this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.hashCode()), event.getPath(), dataString));
+				this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.getVersion()), event.getPath(), dataString));
 			}
 		} catch (final Exception e) {
 			logger.error("Exception in processing the watch.", e);

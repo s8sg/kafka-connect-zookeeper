@@ -32,10 +32,9 @@ class LoadFromZK( object ):
         self.zk_clients = KazooClient(hosts=self.zk_servers)
         self.zk_clients.start()
         
-    def load_from_zk(self, node, data):
-        if self.zk_clients.exists(node, watch=None) is None:
-            self.zk_clients.create(node, data, acl=None, ephemeral=False, sequence=False, makepath=True)
-        self.zk_clients.set(node, data)
+    def load_from_zk(self, node):
+        content, stat = self.zk_clients.get(node, watch=None)
+        return content
         
     def is_path_exist(self, node):
         if self.zk_clients.exists(node, watch=None) is None:
@@ -56,8 +55,8 @@ def unload_data_to_data_source(data_source, data):
     if data_source == "stdout":
         print data
     elif data_source.startswith("file:"):
-        with open(source.split(":")[1], 'w') as file:
-            data = file.write(data)
+        with open(data_source.split(":")[1], 'w') as file:
+            data = file.write(data + "\n")
     else:
         print "Invalid data source: %s" % data_source
         print_usage()
@@ -84,18 +83,14 @@ if __name__ == '__main__':
     except:
         data_source = "stdout"
     if operation == "download":
-        print "Unloading data from zk_node to source"
         load_from_zk = LoadFromZK(zk_servers.split(","))
         data = load_from_zk.load_from_zk(zk_node)
         if data is None:
             print "Failed to load data from zk:%s !" % zk_node
             exit(1)
-        print "Unloading Node data to: %s" % data_source
         unload_data_to_data_source(data_source, data)
-        print "Successfully downloaded data to: %s" % data_source
         load_from_zk.close()
     elif operation == "upload":    
-        print "Loading data from source to zk_node"
         data = load_data_from_data_source(data_source)
         if data is None:
             print "Failed to load data from source !"
