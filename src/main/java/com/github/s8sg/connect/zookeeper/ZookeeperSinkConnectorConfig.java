@@ -1,4 +1,4 @@
-package org.s8sg.connect.zookeeper;
+package com.github.s8sg.connect.zookeeper;
 
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;

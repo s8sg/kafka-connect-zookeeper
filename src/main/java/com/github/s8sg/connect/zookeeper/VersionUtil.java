@@ -1,4 +1,4 @@
-package org.s8sg.connect.zookeeper;
+package com.github.s8sg.connect.zookeeper;
 
 /**
  * Created by jeremy on 5/3/16.
