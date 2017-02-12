@@ -110,23 +110,4 @@ connect-zk-sink.properties
 #### Note  
 ------------------------
 * This repo is under active devolpment
-* This repo use zk watch feature which is async call, but connector `poll` call is sync in nature. Each poll call register an watch. Watch stores the chaged data in a queue, which is unloaded in poll call itself  
-```
-   poll                             watch_call
-  --------                         ------------ 
-  register---> watch ----------            
-                               | --> puts data
-                                        | 
-              ---->[concurrent_queue]<--  
-             |
-  getdata---- 
-   |
-  send-------------> [kafka]
-```
-* For avoiding multiple registrstion of watch semaphore(1) is used, each callback to watch release semaphore for the specific node
-```
- poll                        watch
--------                     --------
-acquire---> semaphore(1) <--release
-```
 * For any contribution or suggestions, please create PR or Issues
