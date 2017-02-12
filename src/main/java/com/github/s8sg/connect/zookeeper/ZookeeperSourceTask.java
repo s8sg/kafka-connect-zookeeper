@@ -7,8 +7,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -30,8 +28,8 @@ public class ZookeeperSourceTask extends SourceTask {
 	private static final Schema VALUE_SCHEMA = Schema.STRING_SCHEMA;
 	private static final String NODENAME_FIELD = "nodename";
 	private static final String HASHKEY_FIELD = "hashkey";
-	private Map<String, Boolean> firstData;
-	private Map<String, Semaphore> nodeLocks;
+	//private Map<String, Boolean> firstData;
+	//private Map<String, Semaphore> nodeLocks;
 	// Node Locks are used avoid multiple registration of Watches for a single ZK Node
 
 	@Override
@@ -45,49 +43,29 @@ public class ZookeeperSourceTask extends SourceTask {
 		this.zk_nodes= confs.get(ZookeeperSourceConnector.ZK_NODES).split(",");
 		this.zk_hosts = confs.get(ZookeeperSourceConnector.ZK_HOSTS);
 		this.sync_array_list = Collections.synchronizedList(new ArrayList<ZKDataEntry>());
-		this.nodeLocks = new HashMap<String, Semaphore>();
-		for(final String node : this.zk_nodes) {
-			this.nodeLocks.put(node, new Semaphore(1));
-		}
-		this.firstData = new HashMap<String, Boolean>();
-		for(final String node : this.zk_nodes) {
-			this.firstData.put(node, true);
-		}
-		this.zooKeeperer = new Zookeeperer(this.sync_array_list, this.nodeLocks);
+		this.zooKeeperer = new Zookeeperer(this.sync_array_list);
 		try {
 			this.zoo = new ZooKeeper(this.zk_hosts, 1000, this.zooKeeperer);
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 		this.zooKeeperer.setZkClient(this.zoo);
+		for (final String node: this.zk_nodes) {
+			try {
+				final Stat stat = new Stat();
+				final byte[] data = this.zoo.getData(node, this.zooKeeperer, stat);
+				final String dataString = new String(data);
+				// Add the data string to the sync_array_list
+				this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.getVersion()), node, dataString));
+			} catch (final KeeperException | InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	@Override
 	public List<SourceRecord> poll() throws InterruptedException {
 		final List<SourceRecord> records = new ArrayList<>();
-		final Stat stat = new Stat();
-
-		// TODO: Support multiple node, This is being done for only one node now
-		for (final String node: this.zk_nodes) {
-			try {
-				if(this.nodeLocks.get(node).tryAcquire(1, TimeUnit.SECONDS)) {
-					final byte[] data = this.zoo.getData(node, this.zooKeeperer, stat);
-					if (this.firstData.get(node) == true) {
-						final String dataString = new String(data);
-						// Add the data string to the sync_array_list
-						this.sync_array_list.add(new ZKDataEntry(Integer.toString(stat.getVersion()), node, dataString));
-						this.firstData.put(node, false);
-					}
-				}
-			} catch (final KeeperException e) {
-				// In case of any error release the lock
-				if (this.nodeLocks.get(node).availablePermits() < 1){
-					this.nodeLocks.get(node).release();
-				}
-				e.printStackTrace();
-				return null;
-			}
-		}
 
 		// Get all the newly added data from the sync list
 		synchronized(this.sync_array_list) {
