@@ -105,7 +105,6 @@ connect-zk-sink.properties
 #### TODO  
 ------------------------
 * Write Test Cases
-* Integration with build system (Travis)
 
 #### Note  
 ------------------------
